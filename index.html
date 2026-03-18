@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warsaw Parties – Resident Advisor</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0d0d0d;
+    color: #e0e0e0;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #161616;
+    border-bottom: 1px solid #2a2a2a;
+    padding: 20px 32px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
+  header span { color: #666; font-size: 0.85rem; }
+  #total-badge {
+    margin-left: auto;
+    background: #e8ff00;
+    color: #000;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 28px 32px; }
+
+  /* SLIDER */
+  .slider-section {
+    background: #161616;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 24px 28px 20px;
+    margin-bottom: 24px;
+  }
+
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+
+  .slider-header label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; }
+  #range-display { font-size: 1rem; font-weight: 600; color: #e8ff00; }
+
+  .slider-track-wrap {
+    position: relative;
+    height: 36px;
+    display: flex;
+    align-items: center;
+  }
+
+  .slider-track {
+    position: absolute;
+    left: 0; right: 0;
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+  }
+
+  .slider-fill {
+    position: absolute;
+    height: 4px;
+    background: #e8ff00;
+    border-radius: 2px;
+    pointer-events: none;
+  }
+
+  input[type=range] {
+    position: absolute;
+    left: 0; right: 0;
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    pointer-events: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid #e8ff00;
+    cursor: pointer;
+    pointer-events: all;
+    box-shadow: 0 0 0 3px rgba(232,255,0,0.15);
+  }
+
+  input[type=range]::-webkit-slider-runnable-track { background: transparent; }
+
+  .slider-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.72rem;
+    color: #555;
+  }
+
+  /* CHART */
+  .chart-section {
+    background: #161616;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+  }
+
+  .section-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin-bottom: 16px;
+  }
+
+  #chart-wrap { position: relative; height: 260px; }
+
+  /* CHARTS ROW */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+
+  .charts-row .chart-section { margin-bottom: 0; }
+
+  #venues-chart-wrap { position: relative; height: 260px; }
+
+  .venues-top-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .venues-top-ctrl label { font-size: 0.75rem; color: #666; }
+
+  .venues-top-ctrl select {
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 5px;
+    color: #e0e0e0;
+    padding: 3px 8px;
+    font-size: 0.78rem;
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* EVENTS TABLE */
+  .events-section {
+    background: #161616;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 24px 28px;
+  }
+
+  .events-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  #search {
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #e0e0e0;
+    padding: 7px 12px;
+    font-size: 0.85rem;
+    width: 240px;
+    outline: none;
+  }
+
+  #search:focus { border-color: #555; }
+
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.83rem;
+  }
+
+  thead th {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #2a2a2a;
+    color: #666;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  thead th:hover { color: #aaa; }
+  thead th .sort-icon { margin-left: 4px; opacity: 0.4; }
+  thead th.sorted .sort-icon { opacity: 1; color: #e8ff00; }
+
+  tbody tr {
+    border-bottom: 1px solid #1e1e1e;
+    transition: background 0.1s;
+  }
+
+  tbody tr:hover { background: #1c1c1c; }
+
+  td {
+    padding: 10px 12px;
+    vertical-align: middle;
+    max-width: 280px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  td.date-col { color: #888; font-variant-numeric: tabular-nums; }
+  td.time-col { color: #666; font-size: 0.78rem; }
+
+  td a {
+    color: #e0e0e0;
+    text-decoration: none;
+  }
+  td a:hover { color: #e8ff00; }
+
+  .venue-cell { position: relative; display: inline-block; }
+
+  .venue-name {
+    cursor: default;
+    border-bottom: 1px dashed #444;
+    transition: color 0.1s, border-color 0.1s;
+  }
+
+  .venue-name:hover { color: #e8ff00; border-color: #e8ff00; }
+
+  /* TOOLTIP */
+  #tooltip {
+    position: fixed;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.8rem;
+    max-width: 260px;
+    pointer-events: none;
+    z-index: 9999;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+
+  #tooltip .tt-name { font-weight: 700; font-size: 0.88rem; margin-bottom: 6px; }
+  #tooltip .tt-address { color: #aaa; margin-bottom: 6px; line-height: 1.4; }
+  #tooltip .tt-count { color: #e8ff00; font-size: 0.75rem; }
+
+  .artists-cell { color: #888; font-size: 0.78rem; }
+
+  .attending-cell {
+    text-align: right;
+    color: #666;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cost-cell { color: #888; }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    font-size: 0.83rem;
+  }
+
+  .pagination button {
+    background: #222;
+    border: 1px solid #333;
+    color: #e0e0e0;
+    padding: 5px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.83rem;
+  }
+
+  .pagination button:hover:not(:disabled) { background: #2a2a2a; border-color: #555; }
+  .pagination button:disabled { opacity: 0.3; cursor: default; }
+  #page-info { color: #666; }
+
+  .no-results { text-align: center; padding: 40px; color: #555; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Warsaw Parties</h1>
+  <span>Resident Advisor · 2003–2026</span>
+  <div id="total-badge">0 events</div>
+</header>
+
+<div id="tooltip">
+  <div class="tt-name" id="tt-name"></div>
+  <div class="tt-address" id="tt-address"></div>
+  <div class="tt-count" id="tt-count"></div>
+</div>
+
+<div class="container">
+
+  <!-- DATE RANGE SLIDER -->
+  <div class="slider-section">
+    <div class="slider-header">
+      <label>Date Range</label>
+      <div id="range-display"></div>
+    </div>
+    <div class="slider-track-wrap">
+      <div class="slider-track"></div>
+      <div class="slider-fill" id="slider-fill"></div>
+      <input type="range" id="slider-min" min="0" step="1">
+      <input type="range" id="slider-max" min="0" step="1">
+    </div>
+    <div class="slider-labels">
+      <span id="label-min"></span>
+      <span id="label-max"></span>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW -->
+  <div class="charts-row">
+
+    <div class="chart-section">
+      <div class="section-title">Events per Month</div>
+      <div id="chart-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <div class="section-title">Attendance per Month</div>
+      <div id="attendance-chart-wrap" style="position:relative;height:260px">
+        <canvas id="attendance-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="section-title" style="margin:0">Top Venues</div>
+        <div class="venues-top-ctrl">
+          <label>Show top</label>
+          <select id="venues-top-n">
+            <option value="10" selected>10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+          </select>
+        </div>
+      </div>
+      <div id="venues-chart-wrap">
+        <canvas id="venues-chart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- EVENTS TABLE -->
+  <div class="events-section">
+    <div class="events-header">
+      <div class="section-title" style="margin:0">Events</div>
+      <input type="text" id="search" placeholder="Search title, venue, artist…">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-col="date">Date <span class="sort-icon">↕</span></th>
+            <th data-col="time">Time</th>
+            <th data-col="title">Title <span class="sort-icon">↕</span></th>
+            <th data-col="venue">Venue <span class="sort-icon">↕</span></th>
+            <th data-col="artists">Artists</th>
+            <th data-col="attending" style="text-align:right">Attending <span class="sort-icon">↕</span></th>
+            <th data-col="cost">Cost</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <div class="no-results" id="no-results" style="display:none">No events found.</div>
+    <div class="pagination">
+      <button id="btn-prev">← Prev</button>
+      <span id="page-info"></span>
+      <button id="btn-next">Next →</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Load data ──────────────────────────────────────────────────────────────
+fetch('data.json')
+  .then(r => r.json())
+  .then(init);
+
+function init(rawData) {
+  // Sort by date ascending
+  rawData.sort((a, b) => a.date.localeCompare(b.date));
+
+  // Build venue stats map
+  const venueStats = {};
+  rawData.forEach(e => {
+    if (!e.venue_id) return;
+    if (!venueStats[e.venue_id]) {
+      venueStats[e.venue_id] = { name: e.venue_name, address: e.venue_address, count: 0 };
+    }
+    venueStats[e.venue_id].count++;
+  });
+
+  // ── Months index ──────────────────────────────────────────────────────────
+  const months = buildMonths(rawData);
+  const MIN_IDX = 0;
+  const MAX_IDX = months.length - 1;
+
+  // ── Slider setup ─────────────────────────────────────────────────────────
+  const sliderMin = document.getElementById('slider-min');
+  const sliderMax = document.getElementById('slider-max');
+  const fill      = document.getElementById('slider-fill');
+  const rangeLbl  = document.getElementById('range-display');
+  const labelMin  = document.getElementById('label-min');
+  const labelMax  = document.getElementById('label-max');
+
+  [sliderMin, sliderMax].forEach(s => {
+    s.min = MIN_IDX;
+    s.max = MAX_IDX;
+  });
+
+  sliderMin.value = MIN_IDX;
+  sliderMax.value = MAX_IDX;
+  labelMin.textContent = months[MIN_IDX].label;
+  labelMax.textContent = months[MAX_IDX].label;
+
+  function updateFill() {
+    const lo = +sliderMin.value, hi = +sliderMax.value;
+    const pct = v => ((v - MIN_IDX) / (MAX_IDX - MIN_IDX)) * 100;
+    fill.style.left  = pct(lo) + '%';
+    fill.style.width = (pct(hi) - pct(lo)) + '%';
+    rangeLbl.textContent = months[lo].label + ' – ' + months[hi].label;
+  }
+
+  updateFill();
+
+  sliderMin.addEventListener('input', () => {
+    if (+sliderMin.value > +sliderMax.value) sliderMin.value = sliderMax.value;
+    updateFill(); refresh();
+  });
+  sliderMax.addEventListener('input', () => {
+    if (+sliderMax.value < +sliderMin.value) sliderMax.value = sliderMin.value;
+    updateFill(); refresh();
+  });
+
+  // ── Search ───────────────────────────────────────────────────────────────
+  const searchEl = document.getElementById('search');
+  searchEl.addEventListener('input', () => { currentPage = 1; refresh(); });
+
+  // ── Sort ─────────────────────────────────────────────────────────────────
+  let sortCol = 'date', sortDir = 1;
+  document.querySelectorAll('thead th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (col === sortCol) sortDir *= -1;
+      else { sortCol = col; sortDir = 1; }
+      document.querySelectorAll('thead th').forEach(t => t.classList.remove('sorted'));
+      th.classList.add('sorted');
+      th.querySelector('.sort-icon').textContent = sortDir === 1 ? '↑' : '↓';
+      currentPage = 1;
+      refresh();
+    });
+  });
+
+  // ── Monthly chart ─────────────────────────────────────────────────────────
+  const ctx = document.getElementById('chart').getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: '#e8ff00', borderRadius: 3, borderSkipped: false }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.raw} event${ctx.raw !== 1 ? 's' : ''}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#555',
+            maxRotation: 45,
+            autoSkip: true,
+            maxTicksLimit: 36,
+            font: { size: 10 }
+          },
+          grid: { color: '#1e1e1e' }
+        },
+        y: {
+          ticks: { color: '#555', font: { size: 10 } },
+          grid: { color: '#1e1e1e' }
+        }
+      }
+    }
+  });
+
+  // ── Attendance chart ──────────────────────────────────────────────────────
+  const actx = document.getElementById('attendance-chart').getContext('2d');
+  const attendanceChart = new Chart(actx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: '#00c9ff', borderRadius: 3, borderSkipped: false }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.raw.toLocaleString()} attending`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#555', maxRotation: 45, autoSkip: true, maxTicksLimit: 36, font: { size: 10 } },
+          grid: { color: '#1e1e1e' }
+        },
+        y: {
+          ticks: { color: '#555', font: { size: 10 } },
+          grid: { color: '#1e1e1e' }
+        }
+      }
+    }
+  });
+
+  // ── Venues chart ─────────────────────────────────────────────────────────
+  const vctx = document.getElementById('venues-chart').getContext('2d');
+  const venuesChart = new Chart(vctx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: '#e8ff00', borderRadius: 3, borderSkipped: false, indexAxis: 'y' }] },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.raw} event${ctx.raw !== 1 ? 's' : ''}`,
+            afterLabel: ctx => {
+              const name = ctx.label;
+              const entry = Object.values(venueStats).find(v => v.name === name);
+              return entry?.address ? entry.address : '';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#555', font: { size: 10 } },
+          grid: { color: '#1e1e1e' }
+        },
+        y: {
+          ticks: { color: '#ccc', font: { size: 11 }, autoSkip: false },
+          grid: { color: '#1e1e1e' }
+        }
+      }
+    }
+  });
+
+  const topNSelect = document.getElementById('venues-top-n');
+  topNSelect.addEventListener('change', refresh);
+
+  // ── Pagination ────────────────────────────────────────────────────────────
+  const PAGE_SIZE = 50;
+  let currentPage = 1;
+  document.getElementById('btn-prev').addEventListener('click', () => { currentPage--; refresh(); });
+  document.getElementById('btn-next').addEventListener('click', () => { currentPage++; refresh(); });
+
+  // ── Tooltip ───────────────────────────────────────────────────────────────
+  const tooltip   = document.getElementById('tooltip');
+  const ttName    = document.getElementById('tt-name');
+  const ttAddress = document.getElementById('tt-address');
+  const ttCount   = document.getElementById('tt-count');
+
+  document.addEventListener('mousemove', e => {
+    if (tooltip.style.display === 'block') {
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top  = (e.clientY - 10) + 'px';
+    }
+  });
+
+  function showTooltip(venueId) {
+    const v = venueStats[venueId];
+    if (!v) return;
+    ttName.textContent    = v.name;
+    ttAddress.textContent = v.address || 'Address unknown';
+    ttCount.textContent   = `${v.count} events on RA`;
+    tooltip.style.display = 'block';
+  }
+
+  function hideTooltip() {
+    tooltip.style.display = 'none';
+  }
+
+  // ── Main refresh ─────────────────────────────────────────────────────────
+  function refresh() {
+    const lo = months[+sliderMin.value].ym;
+    const hi = months[+sliderMax.value].ym;
+    const q  = searchEl.value.trim().toLowerCase();
+
+    // Filter
+    let filtered = rawData.filter(e => {
+      const ym = e.date.slice(0, 7);
+      if (ym < lo || ym > hi) return false;
+      if (q) {
+        const haystack = [e.title, e.venue_name, ...e.artists].join(' ').toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      let av, bv;
+      if (sortCol === 'date')     { av = a.date; bv = b.date; }
+      else if (sortCol === 'title')    { av = a.title.toLowerCase(); bv = b.title.toLowerCase(); }
+      else if (sortCol === 'venue')    { av = a.venue_name.toLowerCase(); bv = b.venue_name.toLowerCase(); }
+      else if (sortCol === 'attending'){ av = a.attending; bv = b.attending; }
+      else return 0;
+      return av < bv ? -sortDir : av > bv ? sortDir : 0;
+    });
+
+    // Badge
+    document.getElementById('total-badge').textContent = `${filtered.length.toLocaleString()} events`;
+
+    // Chart — count by month within range
+    const monthCounts = {};
+    filtered.forEach(e => {
+      const ym = e.date.slice(0, 7);
+      monthCounts[ym] = (monthCounts[ym] || 0) + 1;
+    });
+
+    const chartMonths = months.filter(m => m.ym >= lo && m.ym <= hi);
+    chart.data.labels   = chartMonths.map(m => m.label);
+    chart.data.datasets[0].data = chartMonths.map(m => monthCounts[m.ym] || 0);
+    chart.update('none');
+
+    // Attendance chart — sum attending per month
+    const attendanceCounts = {};
+    filtered.forEach(e => {
+      if (!e.attending) return;
+      const ym = e.date.slice(0, 7);
+      attendanceCounts[ym] = (attendanceCounts[ym] || 0) + e.attending;
+    });
+    attendanceChart.data.labels = chartMonths.map(m => m.label);
+    attendanceChart.data.datasets[0].data = chartMonths.map(m => attendanceCounts[m.ym] || 0);
+    attendanceChart.update('none');
+
+    // Venues chart — count by venue within filtered set
+    const venueCounts = {};
+    filtered.forEach(e => {
+      if (!e.venue_name) return;
+      venueCounts[e.venue_name] = (venueCounts[e.venue_name] || 0) + 1;
+    });
+    const topN = +topNSelect.value;
+    const topVenues = Object.entries(venueCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, topN)
+      .reverse(); // horizontal bar: bottom = highest
+
+    // Resize canvas container to fit N bars
+    document.getElementById('venues-chart-wrap').style.height =
+      Math.max(160, topVenues.length * 28) + 'px';
+
+    venuesChart.data.labels = topVenues.map(v => v[0]);
+    venuesChart.data.datasets[0].data = topVenues.map(v => v[1]);
+    venuesChart.resize();
+    venuesChart.update('none');
+
+    // Pagination
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    currentPage = Math.min(currentPage, totalPages);
+    const slice = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+    document.getElementById('page-info').textContent =
+      `Page ${currentPage} of ${totalPages}`;
+    document.getElementById('btn-prev').disabled = currentPage <= 1;
+    document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+    // Table
+    const tbody = document.getElementById('table-body');
+    document.getElementById('no-results').style.display = filtered.length === 0 ? 'block' : 'none';
+
+    tbody.innerHTML = '';
+    slice.forEach(e => {
+      const tr = document.createElement('tr');
+
+      const timeStr = e.start ? `${e.start}${e.end ? '–' + e.end : ''}` : '';
+
+      const venueHtml = e.venue_id
+        ? `<span class="venue-name" data-vid="${e.venue_id}">${esc(e.venue_name)}</span>`
+        : esc(e.venue_name);
+
+      tr.innerHTML = `
+        <td class="date-col">${e.date}</td>
+        <td class="time-col">${timeStr}</td>
+        <td><a href="${e.url}" target="_blank" rel="noopener">${esc(e.title)}</a></td>
+        <td><div class="venue-cell">${venueHtml}</div></td>
+        <td class="artists-cell">${esc(e.artists.slice(0, 4).join(', '))}</td>
+        <td class="attending-cell">${e.attending || ''}</td>
+        <td class="cost-cell">${esc(e.cost)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Re-attach tooltip events
+    tbody.querySelectorAll('.venue-name[data-vid]').forEach(el => {
+      el.addEventListener('mouseenter', () => showTooltip(el.dataset.vid));
+      el.addEventListener('mouseleave', hideTooltip);
+    });
+  }
+
+  refresh();
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function buildMonths(data) {
+  const set = new Set(data.map(e => e.date.slice(0, 7)));
+  const yms = [...set].sort();
+  const first = yms[0], last = yms[yms.length - 1];
+  const result = [];
+  let [y, m] = first.split('-').map(Number);
+  const [ey, em] = last.split('-').map(Number);
+  while (y < ey || (y === ey && m <= em)) {
+    const ym = `${y}-${String(m).padStart(2, '0')}`;
+    result.push({
+      ym,
+      label: new Date(y, m - 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+    });
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return result;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
