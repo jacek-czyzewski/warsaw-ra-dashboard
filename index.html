@@ -304,6 +304,35 @@
 
   .no-results { text-align: center; padding: 40px; color: #555; }
 
+  #year-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+
+  .year-btn {
+    background: #222;
+    border: 1px solid #333;
+    color: #888;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: color 0.1s, border-color 0.1s, background 0.1s;
+    white-space: nowrap;
+  }
+  .year-btn:hover { border-color: #555; color: #ccc; }
+  .year-btn.active { background: #e8ff00; border-color: #e8ff00; color: #000; font-weight: 700; }
+
+  #btn-export {
+    background: #222;
+    border: 1px solid #333;
+    color: #888;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 0.83rem;
+    cursor: pointer;
+    transition: color 0.1s, border-color 0.1s;
+    white-space: nowrap;
+  }
+  #btn-export:hover { border-color: #555; color: #e0e0e0; }
+
   #artists-chart-wrap { position: relative; height: 260px; }
 
   #artists-chart { cursor: pointer; }
@@ -370,6 +399,7 @@
       <span id="label-min"></span>
       <span id="label-max"></span>
     </div>
+    <div id="year-buttons"></div>
   </div>
 
   <!-- CHARTS ROW -->
@@ -436,7 +466,10 @@
   <div class="events-section">
     <div class="events-header">
       <div class="section-title" style="margin:0">Events</div>
-      <input type="text" id="search" placeholder="Search title, venue, artist…">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button id="btn-export">Export CSV</button>
+        <input type="text" id="search" placeholder="Search title, venue, artist…">
+      </div>
     </div>
     <div class="table-wrap">
       <table>
@@ -519,12 +552,41 @@ function init(rawData) {
 
   sliderMin.addEventListener('input', () => {
     if (+sliderMin.value > +sliderMax.value) sliderMin.value = sliderMax.value;
+    activeYear = null; updateYearButtons();
     updateFill(); refresh();
   });
   sliderMax.addEventListener('input', () => {
     if (+sliderMax.value < +sliderMin.value) sliderMax.value = sliderMin.value;
+    activeYear = null; updateYearButtons();
     updateFill(); refresh();
   });
+
+  // ── Year buttons ──────────────────────────────────────────────────────────
+  const yearButtonsEl = document.getElementById('year-buttons');
+  const years = [...new Set(months.map(m => m.ym.slice(0, 4)))];
+
+  years.forEach(year => {
+    const btn = document.createElement('button');
+    btn.className = 'year-btn';
+    btn.textContent = year;
+    btn.addEventListener('click', () => {
+      const lo = months.findIndex(m => m.ym.startsWith(year));
+      const hi = months.reduce((acc, m, i) => m.ym.startsWith(year) ? i : acc, lo);
+      sliderMin.value = lo;
+      sliderMax.value = hi;
+      activeYear = year;
+      updateYearButtons();
+      updateFill();
+      refresh();
+    });
+    yearButtonsEl.appendChild(btn);
+  });
+
+  function updateYearButtons() {
+    yearButtonsEl.querySelectorAll('.year-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.textContent === activeYear);
+    });
+  }
 
   // ── Search ───────────────────────────────────────────────────────────────
   const searchEl = document.getElementById('search');
@@ -533,6 +595,8 @@ function init(rawData) {
   // ── Sort ─────────────────────────────────────────────────────────────────
   let sortCol = 'date', sortDir = 1;
   let selectedArtist = null;
+  let activeYear = null;
+  let lastFiltered = [];
   document.querySelectorAll('thead th[data-col]').forEach(th => {
     th.addEventListener('click', () => {
       const col = th.dataset.col;
@@ -707,6 +771,31 @@ function init(rawData) {
     }
   }
 
+  // ── CSV export ───────────────────────────────────────────────────────────
+  document.getElementById('btn-export').addEventListener('click', () => {
+    const cols = ['date', 'time', 'title', 'url', 'venue', 'address', 'artists', 'attending', 'cost'];
+    const rows = lastFiltered.map(e => [
+      e.date,
+      e.start ? `${e.start}${e.end ? '–' + e.end : ''}` : '',
+      e.title,
+      e.url,
+      e.venue_name,
+      e.venue_address,
+      e.artists.join('; '),
+      e.attending || '',
+      e.cost
+    ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
+
+    const csv = [cols.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `warsaw-ra-events.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
   // ── Pagination ────────────────────────────────────────────────────────────
   const PAGE_SIZE = 50;
   let currentPage = 1;
@@ -771,6 +860,9 @@ function init(rawData) {
       return av < bv ? -sortDir : av > bv ? sortDir : 0;
     });
 
+    // Snapshot for CSV export
+    lastFiltered = filtered;
+
     // Badge
     document.getElementById('total-badge').textContent = `${filtered.length.toLocaleString()} events`;
 
@@ -829,8 +921,7 @@ function init(rawData) {
     const topNA = +artistsTopNSelect.value;
     const topArtists = Object.entries(artistCounts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, topNA)
-      .reverse();
+      .slice(0, topNA);
 
     document.getElementById('artists-chart-wrap').style.height =
       Math.max(160, topArtists.length * 28) + 'px';
