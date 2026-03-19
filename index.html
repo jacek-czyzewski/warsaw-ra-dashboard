@@ -28,7 +28,7 @@
   header span { color: #666; font-size: 0.85rem; }
   #total-badge {
     margin-left: auto;
-    background: #e8ff00;
+    background: #ff7a00;
     color: #000;
     font-size: 0.75rem;
     font-weight: 700;
@@ -55,7 +55,7 @@
   }
 
   .slider-header label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; }
-  #range-display { font-size: 1rem; font-weight: 600; color: #e8ff00; }
+  #range-display { font-size: 1rem; font-weight: 600; color: #ff7a00; }
 
   .slider-track-wrap {
     position: relative;
@@ -75,7 +75,7 @@
   .slider-fill {
     position: absolute;
     height: 4px;
-    background: #e8ff00;
+    background: #ff7a00;
     border-radius: 2px;
     pointer-events: none;
   }
@@ -96,10 +96,10 @@
     width: 18px; height: 18px;
     border-radius: 50%;
     background: #fff;
-    border: 3px solid #e8ff00;
+    border: 3px solid #ff7a00;
     cursor: pointer;
     pointer-events: all;
-    box-shadow: 0 0 0 3px rgba(232,255,0,0.15);
+    box-shadow: 0 0 0 3px rgba(255,122,0,0.15);
   }
 
   input[type=range]::-webkit-slider-runnable-track { background: transparent; }
@@ -213,7 +213,7 @@
 
   thead th:hover { color: #aaa; }
   thead th .sort-icon { margin-left: 4px; opacity: 0.4; }
-  thead th.sorted .sort-icon { opacity: 1; color: #e8ff00; }
+  thead th.sorted .sort-icon { opacity: 1; color: #ff7a00; }
 
   tbody tr {
     border-bottom: 1px solid #1e1e1e;
@@ -238,7 +238,7 @@
     color: #e0e0e0;
     text-decoration: none;
   }
-  td a:hover { color: #e8ff00; }
+  td a:hover { color: #ff7a00; }
 
   .venue-cell { position: relative; display: inline-block; }
 
@@ -248,7 +248,7 @@
     transition: color 0.1s, border-color 0.1s;
   }
 
-  .venue-name:hover { color: #e8ff00; border-color: #e8ff00; }
+  .venue-name:hover { color: #ff7a00; border-color: #ff7a00; }
 
   /* TOOLTIP */
   #tooltip {
@@ -267,7 +267,7 @@
 
   #tooltip .tt-name { font-weight: 700; font-size: 0.88rem; margin-bottom: 6px; }
   #tooltip .tt-address { color: #aaa; margin-bottom: 6px; line-height: 1.4; }
-  #tooltip .tt-count { color: #e8ff00; font-size: 0.75rem; }
+  #tooltip .tt-count { color: #ff7a00; font-size: 0.75rem; }
 
   .artists-cell { color: #888; font-size: 0.78rem; }
 
@@ -318,7 +318,7 @@
     white-space: nowrap;
   }
   .year-btn:hover { border-color: #555; color: #ccc; }
-  .year-btn.active { background: #e8ff00; border-color: #e8ff00; color: #000; font-weight: 700; }
+  .year-btn.active { background: #ff7a00; border-color: #ff7a00; color: #000; font-weight: 700; }
 
   #btn-export {
     background: #222;
@@ -341,13 +341,13 @@
     cursor: pointer;
     transition: color 0.1s;
   }
-  .artist-link:hover { color: #e8ff00; }
+  .artist-link:hover { color: #ff7a00; }
 
   .artist-filter-badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: #e8ff00;
+    background: #ff7a00;
     color: #000;
     font-size: 0.75rem;
     font-weight: 700;
@@ -438,28 +438,39 @@
 
   </div>
 
-  <!-- TOP ARTISTS CHART -->
-  <div class="chart-section" style="margin-bottom:24px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:12px">
-        <div class="section-title" style="margin:0">Top Artists</div>
-        <span id="artist-filter-badge" class="artist-filter-badge" style="display:none">
-          <span id="artist-filter-name"></span>
-          <button id="artist-filter-clear" title="Clear filter">×</button>
-        </span>
+  <!-- TOP ARTISTS + TOP PARTIES ROW -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">
+
+    <div class="chart-section" style="margin-bottom:0">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="section-title" style="margin:0">Top Artists</div>
+          <span id="artist-filter-badge" class="artist-filter-badge" style="display:none">
+            <span id="artist-filter-name"></span>
+            <button id="artist-filter-clear" title="Clear filter">×</button>
+          </span>
+        </div>
+        <div class="venues-top-ctrl">
+          <label>Show top</label>
+          <select id="artists-top-n">
+            <option value="10" selected>10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+          </select>
+        </div>
       </div>
-      <div class="venues-top-ctrl">
-        <label>Show top</label>
-        <select id="artists-top-n">
-          <option value="10" selected>10</option>
-          <option value="20">20</option>
-          <option value="30">30</option>
-        </select>
+      <div id="artists-chart-wrap">
+        <canvas id="artists-chart"></canvas>
       </div>
     </div>
-    <div id="artists-chart-wrap">
-      <canvas id="artists-chart"></canvas>
+
+    <div class="chart-section" style="margin-bottom:0">
+      <div class="section-title">Top 10 Parties by Attendance</div>
+      <div id="parties-chart-wrap" style="position:relative;height:280px">
+        <canvas id="parties-chart"></canvas>
+      </div>
     </div>
+
   </div>
 
   <!-- EVENTS TABLE -->
@@ -597,6 +608,7 @@ function init(rawData) {
   let selectedArtist = null;
   let activeYear = null;
   let lastFiltered = [];
+  let topPartiesData = [];
   document.querySelectorAll('thead th[data-col]').forEach(th => {
     th.addEventListener('click', () => {
       const col = th.dataset.col;
@@ -614,7 +626,7 @@ function init(rawData) {
   const ctx = document.getElementById('chart').getContext('2d');
   const chart = new Chart(ctx, {
     type: 'bar',
-    data: { labels: [], datasets: [{ data: [], backgroundColor: '#e8ff00', borderRadius: 3, borderSkipped: false }] },
+    data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff7a00', borderRadius: 3, borderSkipped: false }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -649,7 +661,7 @@ function init(rawData) {
   const actx = document.getElementById('attendance-chart').getContext('2d');
   const attendanceChart = new Chart(actx, {
     type: 'bar',
-    data: { labels: [], datasets: [{ data: [], backgroundColor: '#00c9ff', borderRadius: 3, borderSkipped: false }] },
+    data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff7a00', borderRadius: 3, borderSkipped: false }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -678,7 +690,7 @@ function init(rawData) {
   const vctx = document.getElementById('venues-chart').getContext('2d');
   const venuesChart = new Chart(vctx, {
     type: 'bar',
-    data: { labels: [], datasets: [{ data: [], backgroundColor: '#e8ff00', borderRadius: 3, borderSkipped: false, indexAxis: 'y' }] },
+    data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff7a00', borderRadius: 3, borderSkipped: false, indexAxis: 'y' }] },
     options: {
       indexAxis: 'y',
       responsive: true,
@@ -716,7 +728,7 @@ function init(rawData) {
   const arctx = document.getElementById('artists-chart').getContext('2d');
   const artistsChart = new Chart(arctx, {
     type: 'bar',
-    data: { labels: [], datasets: [{ data: [], backgroundColor: '#e8ff00', borderRadius: 3, borderSkipped: false, indexAxis: 'y' }] },
+    data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff7a00', borderRadius: 3, borderSkipped: false, indexAxis: 'y' }] },
     options: {
       indexAxis: 'y',
       responsive: true,
@@ -752,6 +764,40 @@ function init(rawData) {
 
   const artistsTopNSelect = document.getElementById('artists-top-n');
   artistsTopNSelect.addEventListener('change', refresh);
+
+  // ── Top Parties chart ─────────────────────────────────────────────────────
+  const pctx = document.getElementById('parties-chart').getContext('2d');
+  const partiesChart = new Chart(pctx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff7a00', borderRadius: 3, borderSkipped: false, indexAxis: 'y' }] },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.raw.toLocaleString()} attending`,
+            afterLabel: ctx => {
+              const e = topPartiesData[ctx.dataIndex];
+              return e ? `${e.date}  ·  ${e.venue_name}` : '';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#555', font: { size: 10 } },
+          grid: { color: '#1e1e1e' }
+        },
+        y: {
+          ticks: { color: '#ccc', font: { size: 11 }, autoSkip: false },
+          grid: { color: '#1e1e1e' }
+        }
+      }
+    }
+  });
 
   const artistFilterBadge = document.getElementById('artist-filter-badge');
   const artistFilterName  = document.getElementById('artist-filter-name');
@@ -898,8 +944,7 @@ function init(rawData) {
     const topN = +topNSelect.value;
     const topVenues = Object.entries(venueCounts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, topN)
-      .reverse(); // horizontal bar: bottom = highest
+      .slice(0, topN);
 
     // Resize canvas container to fit N bars
     document.getElementById('venues-chart-wrap').style.height =
@@ -929,10 +974,24 @@ function init(rawData) {
     artistsChart.data.labels = topArtists.map(a => a[0]);
     artistsChart.data.datasets[0].data = topArtists.map(a => a[1]);
     artistsChart.data.datasets[0].backgroundColor = topArtists.map(a =>
-      selectedArtist && a[0] === selectedArtist ? '#fff' : '#e8ff00'
+      selectedArtist && a[0] === selectedArtist ? '#fff' : '#ff7a00'
     );
     artistsChart.resize();
     artistsChart.update('none');
+
+    // Top Parties chart — top 10 events by attendance
+    topPartiesData = filtered
+      .filter(e => e.attending > 0)
+      .sort((a, b) => b.attending - a.attending)
+      .slice(0, 10);
+
+    document.getElementById('parties-chart-wrap').style.height =
+      Math.max(160, topPartiesData.length * 28) + 'px';
+
+    partiesChart.data.labels = topPartiesData.map(e => e.title);
+    partiesChart.data.datasets[0].data = topPartiesData.map(e => e.attending);
+    partiesChart.resize();
+    partiesChart.update('none');
 
     // Pagination
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
