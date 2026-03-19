@@ -335,7 +335,7 @@
 
   #artists-chart-wrap { position: relative; height: 260px; }
 
-  #artists-chart { cursor: pointer; }
+  #chart, #attendance-chart, #venues-chart, #artists-chart, #parties-chart { cursor: pointer; }
 
   .artist-link {
     cursor: pointer;
@@ -421,7 +421,13 @@
 
     <div class="chart-section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div class="section-title" style="margin:0">Top Venues</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="section-title" style="margin:0">Top Venues</div>
+          <span id="venue-filter-badge" class="artist-filter-badge" style="display:none">
+            <span id="venue-filter-name"></span>
+            <button id="venue-filter-clear" title="Clear filter">×</button>
+          </span>
+        </div>
         <div class="venues-top-ctrl">
           <label>Show top</label>
           <select id="venues-top-n">
@@ -599,6 +605,18 @@ function init(rawData) {
     });
   }
 
+  function setMonthFilter(ym) {
+    const idx = months.findIndex(m => m.ym === ym);
+    if (idx === -1) return;
+    sliderMin.value = idx;
+    sliderMax.value = idx;
+    activeYear = null;
+    updateYearButtons();
+    updateFill();
+    currentPage = 1;
+    refresh();
+  }
+
   // ── Search ───────────────────────────────────────────────────────────────
   const searchEl = document.getElementById('search');
   searchEl.addEventListener('input', () => { currentPage = 1; refresh(); });
@@ -606,6 +624,7 @@ function init(rawData) {
   // ── Sort ─────────────────────────────────────────────────────────────────
   let sortCol = 'date', sortDir = 1;
   let selectedArtist = null;
+  let selectedVenue  = null;
   let activeYear = null;
   let lastFiltered = [];
   let topPartiesData = [];
@@ -630,6 +649,13 @@ function init(rawData) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const lo = months[+sliderMin.value].ym;
+        const hi = months[+sliderMax.value].ym;
+        const cm = months.filter(m => m.ym >= lo && m.ym <= hi);
+        setMonthFilter(cm[elements[0].index].ym);
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -665,6 +691,13 @@ function init(rawData) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const lo = months[+sliderMin.value].ym;
+        const hi = months[+sliderMax.value].ym;
+        const cm = months.filter(m => m.ym >= lo && m.ym <= hi);
+        setMonthFilter(cm[elements[0].index].ym);
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -695,6 +728,14 @@ function init(rawData) {
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const label = venuesChart.data.labels[elements[0].index];
+        selectedVenue = selectedVenue === label ? null : label;
+        currentPage = 1;
+        updateVenueBadge();
+        refresh();
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -723,6 +764,24 @@ function init(rawData) {
 
   const topNSelect = document.getElementById('venues-top-n');
   topNSelect.addEventListener('change', refresh);
+
+  const venueFilterBadge = document.getElementById('venue-filter-badge');
+  const venueFilterName  = document.getElementById('venue-filter-name');
+  document.getElementById('venue-filter-clear').addEventListener('click', () => {
+    selectedVenue = null;
+    currentPage = 1;
+    updateVenueBadge();
+    refresh();
+  });
+
+  function updateVenueBadge() {
+    if (selectedVenue) {
+      venueFilterName.textContent = selectedVenue;
+      venueFilterBadge.style.display = 'inline-flex';
+    } else {
+      venueFilterBadge.style.display = 'none';
+    }
+  }
 
   // ── Artists chart ─────────────────────────────────────────────────────────
   const arctx = document.getElementById('artists-chart').getContext('2d');
@@ -774,6 +833,11 @@ function init(rawData) {
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const e = topPartiesData[elements[0].index];
+        if (e) setMonthFilter(e.date.slice(0, 7));
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -892,6 +956,7 @@ function init(rawData) {
         const sel = selectedArtist.toLowerCase();
         if (!e.artists.some(a => a.toLowerCase() === sel)) return false;
       }
+      if (selectedVenue && e.venue_name !== selectedVenue) return false;
       return true;
     });
 
