@@ -208,7 +208,7 @@ Key characteristics:
 - **Substring match** — no tokenisation or fuzzy logic
 - **Case-insensitive** — both haystack and query are lowercased
 - `...e.artists` spreads the entire artists array, so partial artist name matches work
-- Combines additively with date range and artist filter — all three must pass
+- Combines additively with date range, artist filter, and venue filter — all four must pass
 
 ---
 
@@ -221,6 +221,7 @@ All mutable state lives inside the `init()` closure:
 | `sortCol` | `string` | Active sort column key |
 | `sortDir` | `1` or `-1` | Sort direction |
 | `selectedArtist` | `string \| null` | Artist filter set by chart/table click |
+| `selectedVenue` | `string \| null` | Venue filter set by clicking the Top Venues chart |
 | `activeYear` | `string \| null` | Currently highlighted year button (`"2015"` etc.) |
 | `lastFiltered` | `Event[]` | Snapshot of filtered array for CSV export |
 | `topPartiesData` | `Event[]` | Top 10 events by attendance, for chart tooltip lookups |
@@ -251,6 +252,42 @@ Clicking the currently selected artist sets `selectedArtist = null`, toggling th
 
 ---
 
+## Venue Filter (`selectedVenue`)
+
+When set, restricts the filter pipeline to events whose `venue_name` exactly matches the selected value:
+
+```js
+if (selectedVenue && e.venue_name !== selectedVenue) return false;
+```
+
+`selectedVenue` is set by clicking a bar in the Top Venues chart. Clicking the already-selected venue clears it (toggle behaviour, identical to `selectedArtist`).
+
+**`updateVenueBadge()`** mirrors `updateArtistBadge()` — it shows or hides `#venue-filter-badge`, an orange pill element that appears inline next to the Top Venues chart title and contains the active venue name and an `×` clear button. The badge element reuses the `.artist-filter-badge` CSS class.
+
+---
+
+## `setMonthFilter(ym)` Helper
+
+A shared helper called by the three charts that filter by time (Events per Month, Attendance per Month, Top Parties). Sets both slider handles to the same month index, collapsing the range to a single month:
+
+```js
+function setMonthFilter(ym) {
+  const idx = months.findIndex(m => m.ym === ym);
+  if (idx === -1) return;
+  sliderMin.value = idx;
+  sliderMax.value = idx;
+  activeYear = null;
+  updateYearButtons();
+  updateFill();
+  currentPage = 1;
+  refresh();
+}
+```
+
+Calling this is equivalent to dragging both slider handles to the same position — the date range display, fill bar, and year button highlights all update consistently. `activeYear` is cleared because a single-month selection does not correspond to a full calendar year.
+
+---
+
 ## Events per Month Chart
 
 Vertical bar chart, `type: 'bar'`, orange bars.
@@ -262,6 +299,18 @@ Key Chart.js parameters:
 - `maxTicksLimit: 36` — Chart.js auto-skips x-axis labels beyond this count
 - `maxRotation: 45` — tick labels rotate up to 45° when space is tight
 - `chart.update('none')` — skips transition animations for instant re-render
+
+**Click-to-filter:** clicking a bar calls `setMonthFilter` with that bar's YYYY-MM string. The clicked month's index is found by reconstructing `chartMonths` (the same slice of the `months` array used to populate the chart) from the current slider values at click time:
+
+```js
+onClick: (evt, elements) => {
+  if (!elements.length) return;
+  const lo = months[+sliderMin.value].ym;
+  const hi = months[+sliderMax.value].ym;
+  const cm = months.filter(m => m.ym >= lo && m.ym <= hi);
+  setMonthFilter(cm[elements[0].index].ym);
+}
+```
 
 Data population in `refresh()`:
 
@@ -296,6 +345,8 @@ The `if (!e.attending) return` guard skips falsy values (0, null, undefined), so
 
 Both this chart and the Events per Month chart use `backgroundColor: '#ff7a00'` (orange). They are visually distinguished by their y-axis scale and tooltip text rather than color.
 
+**Click-to-filter:** identical `onClick` handler to Events per Month — clicking any bar calls `setMonthFilter` with that month's YYYY-MM value, collapsing the date slider to that single month.
+
 ---
 
 ## Top Venues Chart
@@ -319,6 +370,10 @@ venuesChart.resize();   // re-measures the canvas before update
 `28px` per bar is an empirical value that prevents label overlap. `venuesChart.resize()` must precede `update()`.
 
 **Top-N dropdown** — `<select id="venues-top-n">` with options 10/20/30. Changing it fires `refresh()` directly.
+
+**Click-to-filter:** clicking a bar sets `selectedVenue` to that venue name (or clears it if already selected), then calls `updateVenueBadge()` and `refresh()`. When `selectedVenue` is active, the filter pipeline in `refresh()` reduces the event set to that venue only, so the chart itself will show just one bar.
+
+**Venue filter badge** (`#venue-filter-badge`) — an orange pill appearing next to the chart title, identical in structure to the artist filter badge. Reuses the `.artist-filter-badge` CSS class.
 
 **Tooltip `afterLabel`** looks up the venue address from `venueStats` by matching the label name:
 
@@ -398,6 +453,16 @@ afterLabel: ctx => {
 ```
 
 `topPartiesData[ctx.dataIndex]` works because the chart labels array and `topPartiesData` are always built together in the same `refresh()` pass and maintain the same order.
+
+**Click-to-filter:** clicking a bar calls `setMonthFilter` with that event's month (`e.date.slice(0, 7)`), zooming the date slider to the month in which that top party took place:
+
+```js
+onClick: (evt, elements) => {
+  if (!elements.length) return;
+  const e = topPartiesData[elements[0].index];
+  if (e) setMonthFilter(e.date.slice(0, 7));
+}
+```
 
 ---
 
@@ -491,7 +556,7 @@ const PAGE_SIZE = 50;
 let currentPage = 1;
 ```
 
-`PAGE_SIZE` is a hardcoded constant. `currentPage` is reset to `1` by the search input, artist filter, year buttons, and sort column click handlers. It is clamped to `totalPages` each refresh:
+`PAGE_SIZE` is a hardcoded constant. `currentPage` is reset to `1` by the search input, artist filter, venue filter, year buttons, chart bar clicks, and sort column click handlers. It is clamped to `totalPages` each refresh:
 
 ```js
 currentPage = Math.min(currentPage, totalPages);
@@ -506,7 +571,7 @@ Prev/next buttons are disabled via the `disabled` attribute at the boundaries.
 Called whenever any filter or UI state changes. Runs top-to-bottom in one synchronous pass:
 
 1. Read filter state from DOM (`sliderMin.value`, `sliderMax.value`, `searchEl.value`)
-2. Filter `rawData` into `filtered` — date range, text search, and `selectedArtist` in one `.filter()` call
+2. Filter `rawData` into `filtered` — date range, text search, `selectedArtist`, and `selectedVenue` in one `.filter()` call
 3. Sort `filtered` in place by `sortCol` / `sortDir`
 4. Snapshot `lastFiltered = filtered` for CSV export
 5. Update `#total-badge`
@@ -537,7 +602,13 @@ The colour palette is defined inline throughout the CSS. Key values:
 | `#555` / `#666` | Tertiary text (chart tick labels, pagination info) |
 | `#fff` | Selected artist bar highlight |
 
-There is a single accent color (`#ff7a00`) used for all interactive and highlighted elements — bars in every chart, the slider fill and thumb border, active year buttons, the artist filter badge, sort icons, and hover states. The only exception is the selected artist bar, which uses `#fff` (white) to stand out from the orange background.
+All five chart canvases have `cursor: pointer` set in CSS, signalling that every bar is clickable:
+
+```css
+#chart, #attendance-chart, #venues-chart, #artists-chart, #parties-chart { cursor: pointer; }
+```
+
+There is a single accent color (`#ff7a00`) used for all interactive and highlighted elements — bars in every chart, the slider fill and thumb border, active year buttons, filter badges, sort icons, and hover states. The only exception is the selected artist bar, which uses `#fff` (white) to stand out from the orange background.
 
 **Layout:**
 - Three-chart row: CSS Grid `grid-template-columns: 1fr 1fr 1fr`
