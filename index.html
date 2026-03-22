@@ -258,7 +258,7 @@
     border-radius: 8px;
     padding: 12px 16px;
     font-size: 0.8rem;
-    max-width: 260px;
+    max-width: 280px;
     pointer-events: none;
     z-index: 9999;
     display: none;
@@ -266,8 +266,51 @@
   }
 
   #tooltip .tt-name { font-weight: 700; font-size: 0.88rem; margin-bottom: 6px; }
-  #tooltip .tt-address { color: #aaa; margin-bottom: 6px; line-height: 1.4; }
+  #tooltip .tt-address { color: #aaa; margin-bottom: 4px; line-height: 1.4; }
+  #tooltip .tt-capacity { color: #888; font-size: 0.75rem; margin-bottom: 4px; }
+  #tooltip .tt-blurb { color: #999; font-size: 0.75rem; line-height: 1.5; margin-bottom: 6px; }
   #tooltip .tt-count { color: #ff7a00; font-size: 0.75rem; }
+
+  /* ARTIST CARD */
+  #artist-card {
+    position: fixed;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 0.8rem;
+    width: 300px;
+    pointer-events: none;
+    z-index: 9999;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  #artist-card.has-image { display: flex; }
+  #artist-card.no-image  { display: block; }
+
+  #ac-img {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #2a2a2a;
+  }
+
+  #ac-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 3px; }
+  #ac-meta { color: #888; font-size: 0.75rem; margin-bottom: 6px; }
+  #ac-bio  { color: #bbb; font-size: 0.77rem; line-height: 1.5; margin-bottom: 6px; }
+  #ac-links { display: flex; gap: 8px; flex-wrap: wrap; }
+  #ac-links a {
+    color: #ff7a00;
+    font-size: 0.72rem;
+    text-decoration: none;
+    pointer-events: all;
+  }
+  #ac-links a:hover { text-decoration: underline; }
 
   .artists-cell { color: #888; font-size: 0.78rem; }
 
@@ -335,6 +378,91 @@
 
   #artists-chart-wrap { position: relative; height: 260px; }
 
+  /* FEATURED ARTIST */
+  #featured-artist {
+    display: none;
+    align-items: center;
+    gap: 18px;
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #fa-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center top;
+    opacity: 0.08;
+    filter: blur(12px);
+    pointer-events: none;
+  }
+
+  #fa-photo {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid #ff7a00;
+    position: relative;
+  }
+
+  #fa-body { flex: 1; min-width: 0; position: relative; }
+
+  #fa-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #ff7a00;
+    margin-bottom: 3px;
+  }
+
+  #fa-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 3px;
+  }
+
+  #fa-meta { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+
+  #fa-bio {
+    font-size: 0.78rem;
+    color: #bbb;
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+
+  #fa-footer { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  #fa-count {
+    font-size: 0.72rem;
+    color: #ff7a00;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  #fa-links { display: flex; gap: 10px; }
+  #fa-links a {
+    font-size: 0.72rem;
+    color: #666;
+    text-decoration: none;
+    transition: color 0.1s;
+  }
+  #fa-links a:hover { color: #ff7a00; }
+
   #chart, #attendance-chart, #venues-chart, #artists-chart, #parties-chart { cursor: pointer; }
 
   .artist-link {
@@ -378,7 +506,19 @@
 <div id="tooltip">
   <div class="tt-name" id="tt-name"></div>
   <div class="tt-address" id="tt-address"></div>
+  <div class="tt-capacity" id="tt-capacity"></div>
+  <div class="tt-blurb" id="tt-blurb"></div>
   <div class="tt-count" id="tt-count"></div>
+</div>
+
+<div id="artist-card">
+  <img id="ac-img" src="" alt="">
+  <div id="ac-body">
+    <div id="ac-name"></div>
+    <div id="ac-meta"></div>
+    <div id="ac-bio"></div>
+    <div id="ac-links"></div>
+  </div>
 </div>
 
 <div class="container">
@@ -465,6 +605,20 @@
           </select>
         </div>
       </div>
+      <div id="featured-artist">
+        <div id="fa-bg"></div>
+        <img id="fa-photo" src="" alt="">
+        <div id="fa-body">
+          <div id="fa-label">#1 Artist</div>
+          <div id="fa-name"></div>
+          <div id="fa-meta"></div>
+          <div id="fa-bio"></div>
+          <div id="fa-footer">
+            <span id="fa-count"></span>
+            <div id="fa-links"></div>
+          </div>
+        </div>
+      </div>
       <div id="artists-chart-wrap">
         <canvas id="artists-chart"></canvas>
       </div>
@@ -516,11 +670,13 @@
 
 <script>
 // ── Load data ──────────────────────────────────────────────────────────────
-fetch('data.json')
-  .then(r => r.json())
-  .then(init);
+Promise.all([
+  fetch('data.json').then(r => r.json()),
+  fetch('artists.json').then(r => r.json()).catch(() => ({})),
+  fetch('venues.json').then(r => r.json()).catch(() => ({})),
+]).then(([rawData, artistsData, venuesData]) => init(rawData, artistsData, venuesData));
 
-function init(rawData) {
+function init(rawData, artistsData, venuesData) {
   // Sort by date ascending
   rawData.sort((a, b) => a.date.localeCompare(b.date));
 
@@ -913,29 +1069,86 @@ function init(rawData) {
   document.getElementById('btn-next').addEventListener('click', () => { currentPage++; refresh(); });
 
   // ── Tooltip ───────────────────────────────────────────────────────────────
-  const tooltip   = document.getElementById('tooltip');
-  const ttName    = document.getElementById('tt-name');
-  const ttAddress = document.getElementById('tt-address');
-  const ttCount   = document.getElementById('tt-count');
+  const tooltip    = document.getElementById('tooltip');
+  const ttName     = document.getElementById('tt-name');
+  const ttAddress  = document.getElementById('tt-address');
+  const ttCapacity = document.getElementById('tt-capacity');
+  const ttBlurb    = document.getElementById('tt-blurb');
+  const ttCount    = document.getElementById('tt-count');
+
+  const artistCard = document.getElementById('artist-card');
+  const acImg      = document.getElementById('ac-img');
+  const acName     = document.getElementById('ac-name');
+  const acMeta     = document.getElementById('ac-meta');
+  const acBio      = document.getElementById('ac-bio');
+  const acLinks    = document.getElementById('ac-links');
 
   document.addEventListener('mousemove', e => {
     if (tooltip.style.display === 'block') {
       tooltip.style.left = (e.clientX + 14) + 'px';
       tooltip.style.top  = (e.clientY - 10) + 'px';
     }
+    if (artistCard.style.display !== 'none') {
+      artistCard.style.left = (e.clientX + 14) + 'px';
+      artistCard.style.top  = (e.clientY - 10) + 'px';
+    }
   });
 
   function showTooltip(venueId) {
-    const v = venueStats[venueId];
+    const v  = venueStats[venueId];
+    const vd = venuesData[venueId];
     if (!v) return;
-    ttName.textContent    = v.name;
+    ttName.textContent = v.name;
     ttAddress.textContent = v.address || 'Address unknown';
-    ttCount.textContent   = `${v.count} events on RA`;
+    if (vd?.capacity) {
+      ttCapacity.textContent = `Capacity: ${vd.capacity}`;
+      ttCapacity.style.display = 'block';
+    } else {
+      ttCapacity.style.display = 'none';
+    }
+    const blurb = vd?.blurb ? stripHtml(vd.blurb) : '';
+    if (blurb) {
+      ttBlurb.textContent = blurb.length > 140 ? blurb.slice(0, 140) + '…' : blurb;
+      ttBlurb.style.display = 'block';
+    } else {
+      ttBlurb.style.display = 'none';
+    }
+    ttCount.textContent = `${v.count} events on RA`;
     tooltip.style.display = 'block';
   }
 
   function hideTooltip() {
     tooltip.style.display = 'none';
+  }
+
+  function showArtistCard(name) {
+    const a = artistsData[name];
+    if (!a || !a.name) return;
+    acName.textContent = a.name;
+    acMeta.textContent = [a.country, a.area].filter(Boolean).join(' · ');
+    acBio.textContent  = a.bioBlurb ? (a.bioBlurb.length > 160 ? a.bioBlurb.slice(0, 160) + '…' : a.bioBlurb) : '';
+
+    const links = [];
+    if (a.contentUrl) links.push(`<a href="https://ra.co${a.contentUrl}" target="_blank" rel="noopener">RA</a>`);
+    if (a.instagram)  links.push(`<a href="${a.instagram}"  target="_blank" rel="noopener">Instagram</a>`);
+    if (a.soundcloud) links.push(`<a href="${a.soundcloud}" target="_blank" rel="noopener">SoundCloud</a>`);
+    if (a.facebook)   links.push(`<a href="${a.facebook}"   target="_blank" rel="noopener">Facebook</a>`);
+    if (a.website)    links.push(`<a href="${a.website}"    target="_blank" rel="noopener">Website</a>`);
+    acLinks.innerHTML = links.join('');
+
+    if (a.image) {
+      acImg.src = a.image;
+      acImg.style.display = 'block';
+      artistCard.className = 'has-image';
+    } else {
+      acImg.style.display = 'none';
+      artistCard.className = 'no-image';
+    }
+    artistCard.style.display = a.image ? 'flex' : 'block';
+  }
+
+  function hideArtistCard() {
+    artistCard.style.display = 'none';
   }
 
   // ── Main refresh ─────────────────────────────────────────────────────────
@@ -1044,6 +1257,32 @@ function init(rawData) {
     artistsChart.resize();
     artistsChart.update('none');
 
+    // Featured artist card — top 1 artist with RA profile
+    const faEl    = document.getElementById('featured-artist');
+    const top1    = topArtists.find(([name]) => artistsData[name]?.image);
+    if (top1) {
+      const [name, count] = top1;
+      const a = artistsData[name];
+      document.getElementById('fa-bg').style.backgroundImage = `url('${a.image}')`;
+      document.getElementById('fa-photo').src = a.image;
+      document.getElementById('fa-name').textContent = a.name || name;
+      document.getElementById('fa-meta').textContent =
+        [a.country, a.area, a.followerCount ? a.followerCount.toLocaleString() + ' followers' : '']
+          .filter(Boolean).join(' · ');
+      document.getElementById('fa-bio').textContent = a.bioBlurb || '';
+      document.getElementById('fa-count').textContent = `${count} events`;
+      const links = [];
+      if (a.contentUrl) links.push(`<a href="https://ra.co${a.contentUrl}" target="_blank" rel="noopener">RA ↗</a>`);
+      if (a.instagram)  links.push(`<a href="${a.instagram}"  target="_blank" rel="noopener">Instagram</a>`);
+      if (a.soundcloud) links.push(`<a href="${a.soundcloud}" target="_blank" rel="noopener">SoundCloud</a>`);
+      if (a.facebook)   links.push(`<a href="${a.facebook}"   target="_blank" rel="noopener">Facebook</a>`);
+      if (a.website)    links.push(`<a href="${a.website}"    target="_blank" rel="noopener">Website</a>`);
+      document.getElementById('fa-links').innerHTML = links.join('');
+      faEl.style.display = 'flex';
+    } else {
+      faEl.style.display = 'none';
+    }
+
     // Top Parties chart — top 10 events by attendance
     topPartiesData = filtered
       .filter(e => e.attending > 0)
@@ -1100,7 +1339,7 @@ function init(rawData) {
       el.addEventListener('mouseleave', hideTooltip);
     });
 
-    // Artist name click → filter
+    // Artist name click → filter; hover → profile card
     tbody.querySelectorAll('.artist-link').forEach(el => {
       el.addEventListener('click', () => {
         const artist = el.dataset.artist;
@@ -1109,6 +1348,8 @@ function init(rawData) {
         updateArtistBadge();
         refresh();
       });
+      el.addEventListener('mouseenter', () => showArtistCard(el.dataset.artist));
+      el.addEventListener('mouseleave', hideArtistCard);
     });
   }
 
@@ -1138,6 +1379,10 @@ function buildMonths(data) {
 function esc(s) {
   if (!s) return '';
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function stripHtml(html) {
+  return html ? html.replace(/<[^>]+>/g, '') : '';
 }
 </script>
 </body>

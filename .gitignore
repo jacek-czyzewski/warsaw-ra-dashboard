@@ -1,1 +1,3 @@
 .DS_Store
+scripts/ra_enriched.db*
+scripts/.venv/
