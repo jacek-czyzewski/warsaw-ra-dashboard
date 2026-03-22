@@ -463,6 +463,51 @@
   }
   #fa-links a:hover { color: #ff7a00; }
 
+  /* FEATURED VENUE */
+  #featured-venue {
+    display: none;
+    align-items: center;
+    gap: 18px;
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #fv-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0.08;
+    filter: blur(12px);
+    pointer-events: none;
+  }
+
+  #fv-photo {
+    width: 88px;
+    height: 88px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid #ff7a00;
+    position: relative;
+  }
+
+  #fv-body { flex: 1; min-width: 0; position: relative; }
+  #fv-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #ff7a00; margin-bottom: 3px; }
+  #fv-name  { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+  #fv-meta  { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+  #fv-bio   { font-size: 0.78rem; color: #bbb; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; }
+  #fv-footer { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  #fv-count  { font-size: 0.72rem; color: #ff7a00; font-weight: 700; white-space: nowrap; }
+  #fv-links  { display: flex; gap: 10px; }
+  #fv-links a { font-size: 0.72rem; color: #666; text-decoration: none; transition: color 0.1s; }
+  #fv-links a:hover { color: #ff7a00; }
+
   #chart, #attendance-chart, #venues-chart, #artists-chart, #parties-chart { cursor: pointer; }
 
   .artist-link {
@@ -626,6 +671,20 @@
 
     <div class="chart-section" style="margin-bottom:0">
       <div class="section-title">Top 10 Parties by Attendance</div>
+      <div id="featured-venue">
+        <div id="fv-bg"></div>
+        <img id="fv-photo" src="" alt="">
+        <div id="fv-body">
+          <div id="fv-label">#1 Venue</div>
+          <div id="fv-name"></div>
+          <div id="fv-meta"></div>
+          <div id="fv-bio"></div>
+          <div id="fv-footer">
+            <span id="fv-count"></span>
+            <div id="fv-links"></div>
+          </div>
+        </div>
+      </div>
       <div id="parties-chart-wrap" style="position:relative;height:280px">
         <canvas id="parties-chart"></canvas>
       </div>
@@ -1296,6 +1355,28 @@ function init(rawData, artistsData, venuesData) {
     partiesChart.data.datasets[0].data = topPartiesData.map(e => e.attending);
     partiesChart.resize();
     partiesChart.update('none');
+
+    // Featured venue card — venue of the #1 attendance party
+    const fvEl  = document.getElementById('featured-venue');
+    const top1p = topPartiesData.find(e => e.venue_id && venuesData[e.venue_id]?.photo);
+    if (top1p) {
+      const vd = venuesData[top1p.venue_id];
+      document.getElementById('fv-bg').style.backgroundImage = `url('${vd.photo}')`;
+      document.getElementById('fv-photo').src = vd.photo;
+      document.getElementById('fv-name').textContent = vd.name || top1p.venue_name;
+      document.getElementById('fv-meta').textContent =
+        [vd.capacity ? `Capacity: ${vd.capacity}` : '', vd.followerCount ? vd.followerCount.toLocaleString() + ' followers' : '']
+          .filter(Boolean).join(' · ');
+      document.getElementById('fv-bio').textContent = stripHtml(vd.blurb || '');
+      document.getElementById('fv-count').textContent = `${top1p.attending.toLocaleString()} attending · ${top1p.date}`;
+      const links = [];
+      if (vd.contentUrl) links.push(`<a href="https://ra.co${vd.contentUrl}" target="_blank" rel="noopener">RA ↗</a>`);
+      if (vd.website)    links.push(`<a href="${vd.website}" target="_blank" rel="noopener">Website</a>`);
+      document.getElementById('fv-links').innerHTML = links.join('');
+      fvEl.style.display = 'flex';
+    } else {
+      fvEl.style.display = 'none';
+    }
 
     // Pagination
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
