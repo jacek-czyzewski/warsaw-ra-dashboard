@@ -2,11 +2,17 @@
 
 ## Architecture
 
-The entire application is a single static file: `index.html`. There is no build step, no framework, and no server-side logic. The browser loads the file directly and fetches one data file.
+The entire application is a single static file: `index.html`. There is no build step, no framework, and no server-side logic. The browser loads the file directly and fetches three JSON data files in parallel.
 
 ```
-index.html   ~1100 lines  — all HTML, CSS, and JavaScript
-data.json    ~3 MB        — 7,482 event records
+index.html      ~1300 lines  — all HTML, CSS, and JavaScript
+data.json       ~3 MB        — 7,482 event records
+artists.json    ~5.7 MB      — 3,731 artist profiles from RA
+venues.json     ~235 KB      — 399 venue profiles from RA
+scripts/
+  enrich.py             — RA GraphQL enrichment script
+  requirements.txt      — Python deps (requests>=2.31.0)
+  ra_enriched.db        — SQLite source-of-truth (gitignored)
 ```
 
 **Technology stack:**
@@ -17,21 +23,101 @@ data.json    ~3 MB        — 7,482 event records
 | Logic | Vanilla JavaScript (ES2020) |
 | Charts | [Chart.js 4.4.0](https://www.chartjs.org/) via jsDelivr CDN |
 | Data | Static JSON fetched at runtime |
+| Enrichment | Python 3, `requests`, SQLite |
+
+---
+
+## RA Enrichment Pipeline
+
+**Script:** `scripts/enrich.py`
+
+A standalone Python script that fetches artist profiles and venue details from the [Resident Advisor GraphQL API](https://ra.co/graphql) and exports them as JSON files consumed by the dashboard. The API is unauthenticated but requires browser-like headers to avoid Cloudflare blocks.
+
+### Usage
+
+```bash
+cd scripts
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+.venv/bin/python enrich.py                  # fetch everything + export JSON
+.venv/bin/python enrich.py --venues-only    # venues only
+.venv/bin/python enrich.py --artists-only   # artists only
+.venv/bin/python enrich.py --export-only    # skip fetching, re-export from DB
+.venv/bin/python enrich.py --batch-size 20 --delay 0.3
+```
+
+### How it works
+
+1. Reads all unique `venue_id` values and artist names from `data.json`
+2. Checks the local SQLite DB (`ra_enriched.db`) — skips already-fetched records, making runs resumable
+3. Queries the RA GraphQL API in **batches of 10** using field aliases to minimise HTTP requests:
+
+```graphql
+{
+  v0: venue(id: "124994", ensureLive: false) { id name address capacity ... }
+  v1: venue(id: "102302", ensureLive: false) { id name address capacity ... }
+  a0: artist(slug: "smolna") { id name image biography { blurb content } ... }
+  a1: artist(slug: "chmury") { id name image biography { blurb content } ... }
+}
+```
+
+4. Stores results in SQLite with `fetched_at` timestamps; records not found on RA are stored with `not_found = 1` to avoid re-querying
+5. Exports `artists.json` and `venues.json` to the project root
+
+**Artist slug derivation** — RA artist URLs use slugs derived from names: lowercase, alphanumeric only:
+
+```python
+re.sub(r"[^a-z0-9]", "", name.lower())   # "Chris Liebing" → "chrisliebing"
+```
+
+**Key fields fetched:**
+
+| Entity | Fields |
+|---|---|
+| Venue | `id name address capacity blurb photo logoUrl contentUrl followerCount isClosed website location{latitude longitude}` |
+| Artist | `id name urlSafeName image coverImage contentUrl followerCount country{name} area{name} biography{blurb content} instagram soundcloud facebook website` |
+
+**Results:** 399 venues (100%), 3,731 artists found (89% of 4,177 unique names). All found artists have profile photos; 2,895 have bio text.
+
+### SQLite schema
+
+```sql
+CREATE TABLE venues (
+    id TEXT PRIMARY KEY, name TEXT, address TEXT, capacity TEXT,
+    blurb TEXT, photo TEXT, logo_url TEXT, content_url TEXT,
+    follower_count INTEGER, is_closed INTEGER DEFAULT 0,
+    latitude REAL, longitude REAL, website TEXT, fetched_at TEXT
+);
+
+CREATE TABLE artists (
+    slug TEXT PRIMARY KEY, ra_id TEXT, name TEXT, image TEXT,
+    cover_image TEXT, country TEXT, area TEXT, bio_blurb TEXT,
+    bio_content TEXT, instagram TEXT, soundcloud TEXT, facebook TEXT,
+    website TEXT, follower_count INTEGER, content_url TEXT,
+    not_found INTEGER DEFAULT 0, fetched_at TEXT
+);
+```
+
+WAL mode (`PRAGMA journal_mode=WAL`) is enabled for safe concurrent reads during export.
 
 ---
 
 ## Data Source
 
-**File:** `data.json`
-**Loaded at:** top of `<script>` block
+**Files:** `data.json`, `artists.json`, `venues.json`
+**Loaded at:** top of `<script>` block via `Promise.all`
 
 ```js
-fetch('data.json')
-  .then(r => r.json())
-  .then(init);
+Promise.all([
+  fetch('data.json').then(r => r.json()),
+  fetch('artists.json').then(r => r.json()).catch(() => ({})),
+  fetch('venues.json').then(r => r.json()).catch(() => ({})),
+]).then(([rawData, artistsData, venuesData]) => init(rawData, artistsData, venuesData));
 ```
 
-The fetch result is passed directly into `init()`. No caching or persistence — data is re-filtered in memory on every user interaction.
+All three files are fetched in parallel. `artists.json` and `venues.json` gracefully fall back to empty objects if missing, so the dashboard remains fully functional without enrichment data. The three arguments are passed into `init()` and captured in its closure for use across all rendering functions.
+
+No caching or persistence — data is re-filtered in memory on every user interaction.
 
 ### Event record shape
 
@@ -95,6 +181,8 @@ Keyed by `venue_id`. Used by:
 - The Venues chart tooltip's `afterLabel` callback to display the address
 
 `count` reflects the **total** across all time, not the filtered count. The chart re-counts per refresh from the filtered set.
+
+`venuesData` (from `venues.json`) is used alongside `venueStats` wherever richer data is needed — capacity, blurb, photo. The two are kept separate: `venueStats` is derived from `rawData` (always available); `venuesData` is the enriched layer (may be empty if enrichment has not been run).
 
 ---
 
@@ -464,6 +552,41 @@ onClick: (evt, elements) => {
 }
 ```
 
+### Featured Venue Card
+
+A richly styled card (`#featured-venue`) sits above the Top 10 Parties chart, mirroring the Featured Artist card in the Artists column. It shows the venue of the **#1 attendance party in the current filtered view** — the first entry in `topPartiesData` whose `venue_id` maps to a photo in `venuesData`.
+
+Updated in `refresh()` immediately after `partiesChart` is updated:
+
+```js
+const top1p = topPartiesData.find(e => e.venue_id && venuesData[e.venue_id]?.photo);
+if (top1p) {
+  const vd = venuesData[top1p.venue_id];
+  document.getElementById('fv-bg').style.backgroundImage = `url('${vd.photo}')`;
+  document.getElementById('fv-photo').src = vd.photo;
+  document.getElementById('fv-name').textContent = vd.name || top1p.venue_name;
+  document.getElementById('fv-meta').textContent =
+    [vd.capacity ? `Capacity: ${vd.capacity}` : '',
+     vd.followerCount ? vd.followerCount.toLocaleString() + ' followers' : '']
+      .filter(Boolean).join(' · ');
+  document.getElementById('fv-bio').textContent = stripHtml(vd.blurb || '');
+  document.getElementById('fv-count').textContent =
+    `${top1p.attending.toLocaleString()} attending · ${top1p.date}`;
+  fvEl.style.display = 'flex';
+}
+```
+
+**Visual structure** (identical pattern to `#featured-artist`):
+- `#fv-bg` — blurred background wash from the venue photo (`opacity: 0.08`)
+- `#fv-photo` — 88 px thumbnail; **border-radius: 10px** (rectangular, not circular) to match RA's venue photo style
+- `#fv-label` — "**#1 Venue**" in small orange caps
+- `#fv-name` — venue name
+- `#fv-meta` — capacity · follower count
+- `#fv-bio` — venue blurb, HTML-stripped, 2-line clamp
+- `#fv-footer` — attendance + date of the top party in orange + links to RA venue page and website
+
+The card is hidden when no party in the top 10 has a venue with a photo in `venuesData`.
+
 ---
 
 ## Table Column Sorting
@@ -545,7 +668,86 @@ document.addEventListener('mousemove', e => {
 });
 ```
 
-The +14 / -10 offsets place it slightly below and to the right of the cursor. `showTooltip(venueId)` reads from `venueStats`. `ttCount` shows the all-time count (from `venueStats`), not the filtered count. `z-index: 9999` keeps it above Chart.js canvases.
+The +14 / -10 offsets place it slightly below and to the right of the cursor. `z-index: 9999` keeps it above Chart.js canvases. `showTooltip(venueId)` reads from both `venueStats` (for address and event count) and `venuesData` (for capacity and blurb):
+
+```js
+function showTooltip(venueId) {
+  const v  = venueStats[venueId];
+  const vd = venuesData[venueId];
+  ttName.textContent    = v.name;
+  ttAddress.textContent = v.address || 'Address unknown';
+  ttCapacity.textContent = vd?.capacity ? `Capacity: ${vd.capacity}` : '';
+  const blurb = vd?.blurb ? stripHtml(vd.blurb) : '';
+  ttBlurb.textContent = blurb.length > 140 ? blurb.slice(0, 140) + '…' : blurb;
+  ttCount.textContent = `${v.count} events on RA`;
+}
+```
+
+`ttCount` shows the all-time count (from `venueStats`), not the filtered count. The blurb from RA is HTML (`SecureSanitizedHtml` type); `stripHtml()` strips all tags before display. Capacity and blurb elements are hidden when data is absent.
+
+---
+
+## Artist Hover Card
+
+A `position: fixed` div (`#artist-card`) appears when hovering over an artist name in the events table. It is also tracked by the global `mousemove` listener alongside the venue tooltip.
+
+Hovering an `.artist-link` span calls `showArtistCard(name)`, which looks up the artist in `artistsData`:
+
+```js
+function showArtistCard(name) {
+  const a = artistsData[name];
+  if (!a || !a.name) return;
+  acName.textContent = a.name;
+  acMeta.textContent = [a.country, a.area].filter(Boolean).join(' · ');
+  acBio.textContent  = a.bioBlurb ? a.bioBlurb.slice(0, 160) + '…' : '';
+  // build links for RA, Instagram, SoundCloud, Facebook, Website
+  acImg.src = a.image;
+  artistCard.style.display = a.image ? 'flex' : 'block';
+}
+```
+
+The card is shown as `flex` when the artist has a photo (the image and body sit side-by-side), or `block` when there is no image (body only). Hovering an artist with no entry in `artistsData` (not found on RA, or enrichment not run) is a no-op — the card stays hidden.
+
+Click behaviour on artist names is unchanged: clicking still sets `selectedArtist` and triggers a filter.
+
+---
+
+## Featured Artist Card
+
+A richly styled card (`#featured-artist`) displayed above the Top Artists chart. It always shows the **#1 artist in the current filtered view** — the first entry in `topArtists` that has a photo in `artistsData`.
+
+Updated in `refresh()` immediately after `topArtists` is computed:
+
+```js
+const top1 = topArtists.find(([name]) => artistsData[name]?.image);
+if (top1) {
+  const [name, count] = top1;
+  const a = artistsData[name];
+  document.getElementById('fa-bg').style.backgroundImage = `url('${a.image}')`;
+  document.getElementById('fa-photo').src = a.image;
+  document.getElementById('fa-name').textContent = a.name || name;
+  document.getElementById('fa-meta').textContent =
+    [a.country, a.area, a.followerCount ? a.followerCount.toLocaleString() + ' followers' : '']
+      .filter(Boolean).join(' · ');
+  document.getElementById('fa-bio').textContent = a.bioBlurb || '';
+  document.getElementById('fa-count').textContent = `${count} events`;
+  // populate fa-links with RA, Instagram, SoundCloud, etc.
+  faEl.style.display = 'flex';
+} else {
+  faEl.style.display = 'none';
+}
+```
+
+**Visual structure:**
+- `#fa-bg` — absolutely positioned, blurred and faded (`opacity: 0.08`) copy of the artist photo used as a background wash behind the card
+- `#fa-photo` — 88 px circular thumbnail with an orange border
+- `#fa-label` — "**#1 Artist**" in small orange caps
+- `#fa-name` — large bold artist name
+- `#fa-meta` — country · area · follower count
+- `#fa-bio` — `bioBlurb` clamped to 2 lines via `-webkit-line-clamp: 2`
+- `#fa-footer` — event count in orange + social/RA links in muted grey
+
+The card updates on every `refresh()` call, so it reflects the current filter context — switching to a specific year or venue immediately promotes the new top artist.
 
 ---
 
@@ -579,9 +781,11 @@ Called whenever any filter or UI state changes. Runs top-to-bottom in one synchr
 7. Aggregate `attendanceCounts` → update Attendance per Month chart
 8. Aggregate `venueCounts` → update Top Venues chart (resize container, `venuesChart.resize()`)
 9. Aggregate `artistCounts` → update Top Artists chart (resize container, `artistsChart.resize()`)
-10. Compute `topPartiesData` → update Top Parties chart (resize container, `partiesChart.resize()`)
-11. Clamp pagination, compute page slice
-12. Render table rows, re-attach venue tooltip and artist link listeners
+10. Update **Featured Artist card** from `topArtists[0]` + `artistsData`
+11. Compute `topPartiesData` → update Top Parties chart (resize container, `partiesChart.resize()`)
+12. Update **Featured Venue card** from `topPartiesData[0]` + `venuesData`
+13. Clamp pagination, compute page slice
+14. Render table rows, re-attach venue tooltip, artist hover card, and artist click listeners
 
 All chart updates use `chart.update('none')` to suppress animations, keeping the dashboard responsive during rapid slider or search interactions.
 
@@ -615,3 +819,31 @@ There is a single accent color (`#ff7a00`) used for all interactive and highligh
 - Top Artists + Top Parties row: CSS Grid `grid-template-columns: 1fr 1fr`
 - Header, slider header, section headers: Flexbox
 - Max content width: `1400px`, centered with `margin: 0 auto`
+
+---
+
+## Helpers
+
+### `esc(s)`
+
+Escapes HTML special characters before inserting user-visible strings into `innerHTML`. Applied to all event fields rendered in the table.
+
+```js
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+```
+
+### `stripHtml(html)`
+
+Strips all HTML tags from a string. Used when displaying venue blurbs from RA (which are returned as `SecureSanitizedHtml`) in plain-text contexts — the venue tooltip and the Featured Venue card bio.
+
+```js
+function stripHtml(html) {
+  return html ? html.replace(/<[^>]+>/g, '') : '';
+}
+```
+
+### `buildMonths(data)`
+
+Scans the dataset for the earliest and latest YYYY-MM values, then walks month-by-month to produce a contiguous array including months with no events. Returns `[{ ym, label }, …]`.
